@@ -6,12 +6,46 @@
    [cljfmt.core :as fmt]
    [clojure.string :as str]
    [clojure.tools.reader.edn :as edn]
-   [clojure.tools.reader.reader-types :as readers]))
+   [clojure.tools.reader.reader-types :as readers]
+   [clojure.walk :as walk]))
 
 ;;; Code formatting
+
+(defn- keyword->symbol [kw]
+  (apply symbol ((juxt namespace name) kw)))
+
+(defn- generate-user-indents [indents]
+  (reduce-kv
+   (fn [m kw rule]
+     (assoc m
+            (keyword->symbol kw)
+            (walk/postwalk #(cond-> % (string? %) keyword) rule)))
+   fmt/default-indents
+   indents))
+
+;; (throw (IllegalArgumentException. (format "Unrecognized expander: %s" expander)))
+
+; (defn- valid-indents? [indents]
+;   (and (map? indents)
+;        (every? keyword?  (keys indents))
+;        (every? vector? (vals indents))))
+;
+; (defn- valid-alias-map? [])
+;
+; (comment
+;   (validate-indents {'foo [[]]})
+;   )
+;
+; (defn- validate-options [options]
+;   )
+
 (defn format-code-reply
-  [{:keys [code] :as msg}]
-  {:formatted-code (fmt/reformat-string code)})
+  [{:keys [code options] :as msg}]
+  (let [opts (some-> options
+                     (select-keys [:indents :alias-map])
+                     (update :indents generate-user-indents)
+                     (update :alias-map #(reduce-kv (fn [m k v] (assoc m (name k) v)) {} %)))]
+    {:formatted-code (fmt/reformat-string code opts)}))
 
 ;;; EDN formatting
 (defn- read-edn

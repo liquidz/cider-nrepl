@@ -60,12 +60,49 @@
       (is (= #{"done"} status))
       (is (= formatted-code-sample formatted-code))))
 
+  (testing "format-code works with indents option"
+    (let [{:keys [formatted-code status]} (session/message {:op "format-code"
+                                                            :code ugly-code-sample
+                                                            :options {"indents" {"let" [["block" 2]]}}})]
+      (is (= #{"done"} status))
+      (is (= "(let [x 3
+      y 4]
+     (+ (* x x) (* y y)))"
+             formatted-code))))
+
+  (testing "format-code works with alias-map option"
+    (let [alias-sample    "(foo/bar 1\n2)"
+          default-options {"indents" {"foo.core/bar" [["inner" 0]]}}
+          normal-reply    (session/message {:op "format-code" :code alias-sample
+                                            :options default-options})
+          alias-map-reply (session/message {:op "format-code" :code alias-sample
+                                            :options (assoc default-options
+                                                            "alias-map" {"foo" "foo.core"})})]
+      (is (= #{"done"} (:status normal-reply) (:status alias-map-reply)))
+      (is (= "(foo/bar 1\n         2)" (:formatted-code normal-reply)))
+      (is (= "(foo/bar 1\n  2)" (:formatted-code alias-map-reply)))))
+
   (testing "format-code op error handling"
     (let [{:keys [status err ex]} (session/message {:op "format-code"
                                                     :code "*/*/*!~v"})]
       (is (= #{"format-code-error" "done"} status))
       (is (.startsWith err "clojure.lang.ExceptionInfo: Invalid"))
-      (is (= ex "class clojure.lang.ExceptionInfo")))))
+      (is (= ex "class clojure.lang.ExceptionInfo"))))
+
+  (testing "FIXME indents option error"
+    (let [{:keys [status err ex] :as reply} (session/message {:op "format-code"
+                                                    :code "(+ 1 2 3)"
+                                                    :options {"indents" {"hello" "world"}}
+                                                    })]
+      (is (= #{"format-code-error" "done"} status))
+      (is (.startsWith err "java.lang.IllegalArgumentException:"))
+      (is (= ex "class java.lang.IllegalArgumentException"))
+      )
+    )
+
+  (testing "FIXME alias-map option error")
+
+  )
 
 (deftest format-edn-op-test
   (testing "format-edn works"
