@@ -491,7 +491,7 @@
                          "sym" "The symbol to lookup."}
               :optional {"export-edn-url" "EDN file URL exported from ClojureDocs. Defaults to \"https://clojuredocs-edn.netlify.com/export.compact.edn\"."}
               :returns {"clojuredocs" "A map of information in ClojureDocs."
-                        "status" "\"no-doc\" if there is no document matching to `ns` and `symbol`."}}}})
+                        "status" "\"no-doc\" if there is no document matching to `ns` and `symbol`. \"no-cache\" if loading cache error is occured."}}}})
 
 ;;; Cider's Handler
 

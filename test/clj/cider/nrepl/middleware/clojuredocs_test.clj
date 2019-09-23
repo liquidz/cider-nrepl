@@ -1,6 +1,7 @@
 (ns cider.nrepl.middleware.clojuredocs-test
   (:require
    [cider.nrepl.test-session :as session]
+   [orchard.clojuredocs :as docs]
    [clojure.string :as str]
    [clojure.test :refer :all]))
 
@@ -10,15 +11,31 @@
 
 (deftest clojuredocs-refresh-cache-integration-test
   (testing "Invalid URL"
-    (let [response (session/message {:op "clojuredocs-refresh-cache"
-                                     :export-edn-url "/non-existing.edn"})]
-      (is (contains? (:status response) "clojuredocs-refresh-cache-error"))
-      (is (not (str/blank? (:err response))))))
+      (let [response (session/message {:op "clojuredocs-refresh-cache"
+                                       :export-edn-url "/non-existing.edn"})]
+        (is (contains? (:status response) "no-cache"))
+        (is (not (str/blank? (:err response))))))
 
   (testing "Valid URL"
-    (let [response (session/message {:op "clojuredocs-refresh-cache"
+    (with-redefs [docs/test-to-access-url (constantly [false (java.io.IOException. "dummy")])]
+      (docs/clean-cache!)
+      (let [response (session/message {:op "clojuredocs-refresh-cache"
+                                       :export-edn-url test-url})]
+        (is (contains? (:status response) "no-cache"))))
+
+    (with-redefs [docs/test-to-access-url (constantly [true])]
+        (let [response (session/message {:op "clojuredocs-refresh-cache"
+                                         :export-edn-url test-url})]
+          (is (contains? (:status response) "ok"))))))
+
+(deftest fixme-test
+  (with-redefs [docs/accessible-url? (constantly false)]
+    (docs/clean-cache!)
+    (let [response (session/message {:op "clojuredocs-lookup"
+                                     :ns "clojure.core"
+                                     :sym "first"
                                      :export-edn-url test-url})]
-      (is (contains? (:status response) "ok")))))
+      (is (contains? (:status response) "no-doc")))))
 
 (deftest clojuredocs-lookup-integration-test
   (testing "Searching for non-existing documentation"

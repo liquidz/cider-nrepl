@@ -5,7 +5,9 @@
   (:require
    [cider.nrepl.middleware.util :as util]
    [cider.nrepl.middleware.util.error-handling :refer [with-safe-transport]]
-   [orchard.clojuredocs :as docs]))
+   [orchard.clojuredocs :as docs])
+  (:import
+   [java.io IOException]))
 
 (defn- clojuredocs-lookup-reply [{:keys [export-edn-url ns sym]}]
   (try
@@ -15,16 +17,18 @@
                    (docs/resolve-and-find-doc (symbol ns) (symbol sym)))]
       {:clojuredocs (util/transform-value doc)}
       {:status :no-doc})
-    ;; TODO: Handle a missing ns directly in Orchard
-    (catch Exception e
-      {:status :no-doc})))
+    (catch Exception _
+      {:status :no-cache })))
 
 (defn clojuredocs-refresh-cache-reply [{:keys [export-edn-url]}]
-  (docs/clean-cache!)
-  (if export-edn-url
-    (docs/load-cache! export-edn-url)
-    (docs/load-cache!))
-  {:status :ok})
+  (try
+    (docs/clean-cache!)
+    (if export-edn-url
+      (docs/load-cache! export-edn-url)
+      (docs/load-cache!))
+    {:status :ok}
+    (catch IOException _
+      {:status :no-cache})))
 
 (defn handle-clojuredocs [handler msg]
   (with-safe-transport handler msg
